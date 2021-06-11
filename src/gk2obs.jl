@@ -24,6 +24,11 @@ Pkg.add("JSON3");
 
 using Debugger, Printf, DataFrames, JSON3, Dates;
 
+INPUT_DIR = "Keep";
+LABEL_FILE = "Labels.txt";
+RECOGNIZED_EXTENSIONS = ["json", "html", "3gp", "png", "jpg", "awb"]
+OUTPUT_DIR = "vault";
+REPORT_FILE = "Google Keep Escape Diary.md"
 
 function getstring(row::DataFrameRow, key::Symbol) ::String
     key in keys(row) ? row[key] : "***"
@@ -66,11 +71,34 @@ function chomp_json_file(filename::String)
   end
 end # chomp_file
 
-function main()
+
+function chomp_all_files()
+    # glob files in Keep dir
+    # readdir() gives Vector{String} of filenames
+    # mkpath() creates intermediate directories, does not error if they exist
+    # match file extension to relevant chomp method
+    # https://github.com/vtjnash/Glob.jl is an option if globbing is required
+    # grep 'isChecked': Google Keep supports checkboxes
+    @bp
     chomp_json_file("/home/thomasn/jdi/gk2obs/sample.json");
+end
+
+function output_report()
+    println("TODO: output report");
+end
+
+function thats_all()
+    println("TODO: That's All Folks!");
+end
+function main()
+    chomp_all_files()
+    output_report()
+    thats_all()
 end
 
 end # module
 
-gk2obs.main()
+if abspath(PROGRAM_FILE) == @__FILE__
+    gk2obs.main()
+end
 
