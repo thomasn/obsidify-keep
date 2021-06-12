@@ -22,16 +22,120 @@ import Dates;
 Pkg.add("DataFrames");
 Pkg.add("JSON3");
 
-using Debugger, Printf, DataFrames, JSON3, Dates;
+using ArgParse, DataFrames, Dates, Debugger, JSON3, Printf;
 
-INPUT_DIR = "Keep";
 LABEL_FILE = "Labels.txt";
 RECOGNIZED_EXTENSIONS = ["json", "html", "3gp", "png", "jpg", "awb"]
-OUTPUT_DIR = "vault";
-REPORT_FILE = "Google Keep Escape Diary.md"
+OUTPUT_SUBDIR = "vault";
+REPORT_FILE = "__Obsidify - Google Keep Escape Diary.md"
+
+
+function main()
+    params = read_args();
+    status = chomp_all_files(params);
+    output_report(params, status);
+    thats_all(status);
+end
+
+#-- Implementation -------- --#
+
+struct Params
+    input_dir::String;
+    output_dir::String;
+    verbose::Bool;
+end
+
+struct Status
+    labels::Vector{String};
+    warnings::Vector{String};
+end
+
+function read_args() :: Params
+    s = ArgParseSettings()
+    @add_arg_table s begin
+        "--inputdir", "-i"
+            help = "location of the Takeout/Keep directory"
+	    arg_type = String
+	    default = "."
+        "--outputdir", "-o"
+	help = "location of the output directory"
+            arg_type = String
+            default = "."
+        "--verbose", "-v"
+            help = "enable detailed logging"
+            action = :store_true
+    end
+    parsed_args = parse_args(ARGS, s);
+    @bp
+    println("---- inputdir=", parsed_args["inputdir"]); # TODO
+    println("---- parsed_args is a ", typeof(parsed_args))
+    params = Params(parsed_args["inputdir"], parsed_args["outputdir"], parsed_args["verbose"]);
+    return params;
+end
+
+
+function chomp_all_files(params::Params) :: Status
+    # TODO glob files in Keep dir
+    # readdir() gives Vector{String} of filenames
+    # mkpath() creates intermediate directories, does not error if they exist
+    # match file extension to relevant chomp method
+    # https://github.com/vtjnash/Glob.jl is an option if globbing is required
+    # grep 'isChecked': Google Keep supports checkboxes
+    #
+   status = Status([], []);
+   chomp_labels_file(params, status);
+   chomp_json_file(params, status, "/home/thomasn/jdi/gk2obs/sample.json");
+   return status;
+end
+
+
+function chomp_labels_file(params::Params, status::Status)
+    # 
+    # return a Vector of all labels used in the Keep repo.
+	    # TODO
+	    append!(status.labels, 
+	        ["LABEL1",
+	         "LABEL2",
+		 ]);
+	end
+
+	function chomp_generic_file(params::Params, status::Status, filename::String)
+	    # TODO
+	end
+
+	function chomp_json_file(params::Params, status::Status, filename::String)
+	    df = JSON3.read.(eachline(filename)) |> DataFrame;
+
+	    for r in eachrow(df)
+		# TODO: Not even thinking about UTF-8 and graphemes...
+		check_for_unknown_keys(keys(r));
+		unixdate_seconds = r[:userEditedTimestampUsec] / 10^6; 
+		datetime = Dates.unix2datetime(unixdate_seconds);
+		ymddate = Dates.format(datetime, "yyyy-mm-dd");
+		println("== DATE   : ", ymddate);
+		println("== TITLE  : ", getstring(r, :title), "==");
+		println("== TEXT   : \n", getstring(r, :textContent), "\n\n");
+		println("== LENGTH : ", length(getstring(r, :textContent)), "==\n");
+		println("== TITLE  : ", getstring(r, :title), "==");
+		println("== TRASH  : ", getbool(r, :isTrashed), "==");
+		println("== ARCHIVE: ", getbool(r, :isArchived), "==");
+		# println("== ANNOT  : ", getvector(r, :annotations), "==");
+		#	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
+	  end
+	end # chomp_file
+
+
+	function output_report(params::Params, status::Status)
+	    println("TODO: output report");
+	end
+
+	function thats_all(status::Status)
+	    println("TODO: That's All Folks!");
+	end
+
 
 function getstring(row::DataFrameRow, key::Symbol) ::String
-    key in keys(row) ? row[key] : "***"
+key in keys(row) ? row[key] : "***"
 end
 
 function getbool(row::DataFrameRow, key::Symbol) ::Bool
@@ -43,57 +147,25 @@ function getvector(row::DataFrameRow, key::Symbol) ::String
 end
 
 
-function chomp_labels_file(filename::String)
-    # TODO
-end
+function check_for_unknown_keys(keyvec::Vector{Symbol})
+    # TODO scream if there's a field name I don't recognize
+    known_keys = [
+		  :annotations,
+                  :attachments,
+                  :color,
+                  :isTrashed,
+                  :isPinned,
+                  :isArchived,
+                  :textContent,
+                  :title,
+                  :userEditedTimestampUsec,
+		  ];
 
-function chomp_generic_file(filename::String, do_logging::Bool = True)
-    # TODO
-end
-
-function chomp_json_file(filename::String)
-    df = JSON3.read.(eachline(filename)) |> DataFrame;
-
-    for r in eachrow(df)
-	# TODO: Not even thinking about UTF-8 and graphemes...
-	unixdate_seconds = r[:userEditedTimestampUsec] / 10^6; 
-	datetime = Dates.unix2datetime(unixdate_seconds);
-	ymddate = Dates.format(datetime, "yyyy-mm-dd");
-	println("== DATE   : ", ymddate);
-	println("== TITLE  : ", getstring(r, :title), "==");
-	println("== TEXT   : \n", getstring(r, :textContent), "\n\n");
-	println("== LENGTH : ", length(getstring(r, :textContent)), "==\n");
-	println("== TITLE  : ", getstring(r, :title), "==");
-	println("== TRASH  : ", getbool(r, :isTrashed), "==");
-	println("== ARCHIVE: ", getbool(r, :isArchived), "==");
-	# println("== ANNOT  : ", getvector(r, :annotations), "==");
-	#	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
-  end
-end # chomp_file
-
-
-function chomp_all_files()
-    # glob files in Keep dir
-    # readdir() gives Vector{String} of filenames
-    # mkpath() creates intermediate directories, does not error if they exist
-    # match file extension to relevant chomp method
-    # https://github.com/vtjnash/Glob.jl is an option if globbing is required
-    # grep 'isChecked': Google Keep supports checkboxes
-    @bp
-    chomp_json_file("/home/thomasn/jdi/gk2obs/sample.json");
-end
-
-function output_report()
-    println("TODO: output report");
-end
-
-function thats_all()
-    println("TODO: That's All Folks!");
-end
-function main()
-    chomp_all_files()
-    output_report()
-    thats_all()
+    for key in keyvec;
+	    if !(key in known_keys)
+            println("unknown key: ", key);
+	end
+    end
 end
 
 end # module
