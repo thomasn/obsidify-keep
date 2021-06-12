@@ -76,13 +76,24 @@ end
 
 function chomp_all_files(params::Params) :: Status
     # TODO glob files in Keep dir
+    status = Status([], []);
     # readdir() gives Vector{String} of filenames
+    filenames = readdir(params.input_dir);
+    for fn in filenames
+        ext = get_file_extension(fn);
+        println("---- fn=", fn, "  ext=", ext);
+        if (ext==".json")
+            chomp_json_file(params, status, params.input_dir * "/" * fn);
+            return status; # TODO noooooo....
+        elseif(ext==".html")
+            println("got HTML ----");
+        end #if
+    end #for
     # mkpath() creates intermediate directories, does not error if they exist
     # match file extension to relevant chomp method
     # https://github.com/vtjnash/Glob.jl is an option if globbing is required
     # grep 'isChecked': Google Keep supports checkboxes
     #
-   status = Status([], []);
    chomp_labels_file(params, status);
    chomp_json_file(params, status, "/home/thomasn/jdi/gk2obs/sample.json");
    return status;
@@ -122,7 +133,7 @@ function chomp_labels_file(params::Params, status::Status)
 		# println("== ANNOT  : ", getvector(r, :annotations), "==");
 		#	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
 	  end
-	end # chomp_file
+	end # chomp_json_file
 
 
 	function output_report(params::Params, status::Status)
@@ -140,6 +151,10 @@ end
 
 function getbool(row::DataFrameRow, key::Symbol) ::Bool
     key in keys(row) ? row[key] : False;
+end
+
+function get_file_extension(filename)
+    return filename[findlast(isequal('.'),filename):end]
 end
 
 function getvector(row::DataFrameRow, key::Symbol) ::String
