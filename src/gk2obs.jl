@@ -56,7 +56,7 @@ function read_args() :: Params
         "--inputdir", "-i"
             help = "location of the Takeout/Keep directory"
 	    arg_type = String
-	    default = "."
+	    default = "./Takeout/Keep"
         "--outputdir", "-o"
 	help = "location of the output directory"
             arg_type = String
