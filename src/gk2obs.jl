@@ -97,20 +97,19 @@ function chomp_all_files(params::Params) :: Status
         if (ext==".json")
             chomp_json_file(params, status, params.input_dir * "/" * fn);
         elseif(ext==".html")
-            println("got HTML ----");
+            ;  ## println("got HTML ----");
+        elseif(fn==LABEL_FILE)
+            chomp_labels_file(params, status, joinpath(params.input_dir, LABEL_FILE));
         else 
             is_media = ext in MEDIA_EXTENSIONS;
             chomp_generic_file(params, status,is_media, fn);
-        end #if
+        end
     end #for
-    #
-   chomp_labels_file(params, status);
-   chomp_json_file(params, status, "/home/thomasn/jdi/gk2obs/sample.json");
    return status;
 end
 
 
-function chomp_labels_file(params::Params, status::Status)
+function chomp_labels_file(params::Params, status::Status, filename::String)
     # 
     # return a Vector of all labels used in the Keep repo.
 	    # TODO
@@ -121,13 +120,13 @@ function chomp_labels_file(params::Params, status::Status)
 	end
 
     function chomp_generic_file(params::Params, status::Status, is_media::Bool, filename::String);
-        target = joinpath(params.output_dir, VAULT_SUBDIR);
+        target_dir = joinpath(params.output_dir, VAULT_SUBDIR);
             if is_media
-                target = joinpath(target,MEDIA_SUBDIR);
+                target_dir = joinpath(target_dir,MEDIA_SUBDIR);
             end
-            println("---- generic: is_media=", is_media, " target=", target);
+            println("---- generic: is_media=", is_media, " target_dir=", target_dir);
             try
-                cp(joinpath(params.input_dir, filename), joinpath(params.output_dir, filename), force=false, follow_symlinks=true);
+                cp(joinpath(params.input_dir, filename), joinpath(target_dir, filename), force=false, follow_symlinks=true);
             catch err
                 println("----hmmm: ", err.msg);
                 push!(status.warnings, filename * ": " * err.msg);
