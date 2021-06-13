@@ -22,16 +22,19 @@ import Dates;
 Pkg.add("DataFrames");
 Pkg.add("JSON3");
 
-using ArgParse, DataFrames, Dates, Debugger, JSON3, Printf;
+using ArgParse, DataFrames, Dates, Debugger, JSON3;
 
 LABEL_FILE = "Labels.txt";
-RECOGNIZED_EXTENSIONS = ["json", "html", "3gp", "png", "jpg", "awb"]
-OUTPUT_SUBDIR = "vault";
+MEDIA_EXTENSIONS = [".3gp", ".png", ".jpg", ".jpeg", ".mpeg", ".mp3", ".mp4", ".awb", ".gif"];
+RECOGNIZED_EXTENSIONS = [".json", ".html"]
+VAULT_SUBDIR = "vault";
+MEDIA_SUBDIR = "media";
 REPORT_FILE = "__Obsidify - Google Keep Escape Diary.md"
 
 
 function main()
     params = read_args();
+    make_output_dirs(params);
     status = chomp_all_files(params);
     output_report(params, status);
     thats_all(status);
@@ -74,25 +77,32 @@ function read_args() :: Params
 end
 
 
+function make_output_dirs(params::Params)
+    vault = params.output_dir * "/" * VAULT_SUBDIR;
+    # mkpath() creates intermediate directories, does not error if they exist
+    mkpath(vault, mode=0o777);
+    mkpath(vault * "/" * MEDIA_SUBDIR, mode=0o777);
+end
+
+
 function chomp_all_files(params::Params) :: Status
-    # TODO glob files in Keep dir
+    # Log all warnings and store labels in Status object
     status = Status([], []);
     # readdir() gives Vector{String} of filenames
     filenames = readdir(params.input_dir);
+    # match file extension to relevant chomp method
     for fn in filenames
         ext = get_file_extension(fn);
         println("---- fn=", fn, "  ext=", ext);
         if (ext==".json")
             chomp_json_file(params, status, params.input_dir * "/" * fn);
-            return status; # TODO noooooo....
         elseif(ext==".html")
             println("got HTML ----");
+        else 
+            is_media = ext in MEDIA_EXTENSIONS;
+            chomp_generic_file(params, status,is_media, fn);
         end #if
     end #for
-    # mkpath() creates intermediate directories, does not error if they exist
-    # match file extension to relevant chomp method
-    # https://github.com/vtjnash/Glob.jl is an option if globbing is required
-    # grep 'isChecked': Google Keep supports checkboxes
     #
    chomp_labels_file(params, status);
    chomp_json_file(params, status, "/home/thomasn/jdi/gk2obs/sample.json");
@@ -110,15 +120,31 @@ function chomp_labels_file(params::Params, status::Status)
 		 ]);
 	end
 
-	function chomp_generic_file(params::Params, status::Status, filename::String)
+    function chomp_generic_file(params::Params, status::Status, is_media::Bool, filename::String);
+        target = joinpath(params.output_dir, VAULT_SUBDIR);
+            if is_media
+                target = joinpath(target,MEDIA_SUBDIR);
+            end
+            println("---- generic: is_media=", is_media, " target=", target);
+            try
+                cp(joinpath(params.input_dir, filename), joinpath(params.output_dir, filename), force=false, follow_symlinks=true);
+            catch err
+                println("----hmmm: ", err.msg);
+                push!(status.warnings, filename * ": " * err.msg);
+            end
+
 	    # TODO
 	end
 
 	function chomp_json_file(params::Params, status::Status, filename::String)
-	    df = JSON3.read.(eachline(filename)) |> DataFrame;
+    # TODO grep 'isChecked': Google Keep supports checkboxes
+    # TODO handle isArchive and isTrash
 
+	    df = JSON3.read.(eachline(filename)) |> DataFrame;
 	    for r in eachrow(df)
 		# TODO: Not even thinking about UTF-8 and graphemes...
+		# TODO: 'listContent' has text/isChecked pairs: choose Markdown equivalent
+		# implement as "\n- [ ] Monday\n- [x] Tuesday"
 		check_for_unknown_keys(keys(r));
 		unixdate_seconds = r[:userEditedTimestampUsec] / 10^6; 
 		datetime = Dates.unix2datetime(unixdate_seconds);
