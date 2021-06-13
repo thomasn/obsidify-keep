@@ -1,3 +1,3 @@
 #!/bin/bash
-julia -e 'include("src/obsidify-keep.jl");gk2obs.main();' > x.log
+julia -e 'include("src/obsidify-keep.jl");obsidify_keep.main();' > x.log
 
