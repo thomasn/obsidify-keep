@@ -69,16 +69,18 @@ function read_args() :: Params
     @bp
     println("---- inputdir=", parsed_args["inputdir"]); # TODO
     println("---- parsed_args is a ", typeof(parsed_args))
-    params = Params(parsed_args["inputdir"], parsed_args["outputdir"], parsed_args["verbose"]);
+    params = Params(parsed_args["inputdir"],
+                    joinpath(parsed_args["outputdir"], VAULT_SUBDIR),
+                    parsed_args["verbose"]);
     return params;
 end
 
 
 function make_output_dirs(params::Params)
-    vault = params.output_dir * "/" * VAULT_SUBDIR;
+    vault = params.output_dir;
     # mkpath() creates intermediate directories, does not error if they exist
     mkpath(vault, mode=0o777);
-    mkpath(vault * "/" * MEDIA_SUBDIR, mode=0o777);
+    mkpath(joinpath(vault, MEDIA_SUBDIR), mode=0o777);
 end
 
 
@@ -154,6 +156,26 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         println("== ARCHIVE: ", getbool(r, :isArchived), "==");
         # println("== ANNOT  : ", getvector(r, :annotations), "==");
         #	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
+        println("-------- fn=", filename);
+        md_filename=splitpath(filename)[end];    # trim directories
+        md_filename = replace(md_filename, ".json" => ".md");
+        md_filename = joinpath(params.output_dir, md_filename);
+        println("-------- md=", md_filename);
+        open(md_filename, "w") do file
+            println(file, "---");
+            println(file, "date: ", ymddate);
+            # TODO: check for Obsidian-recognized meta-tags
+            println(file, "---");
+            println(file, "");
+            println(file, "#", getstring(r, :title));
+            println(file, "");
+            # TODO: check options for text expansion, e.g. simple bullets to MD lists
+            println(file, "--- textContent is ----");
+            println(file, getstring(r, :textContent));
+            println(file, "--- listContent is ----");
+            println(file, getvector(r, :listContent)[1]);
+        end # open
+        exit(-1); #### EXPLODE AFTER FIRST JSON!!! ###
 
     end
 end
@@ -169,20 +191,27 @@ end
 
 
 function getstring(row::DataFrameRow, key::Symbol) ::String
-    key in keys(row) ? row[key] : "***"
+    key in keys(row) ? row[key] : "***";
 end
 
 function getbool(row::DataFrameRow, key::Symbol) ::Bool
     key in keys(row) ? row[key] : False;
 end
 
-function get_file_extension(filename)
-    return filename[findlast(isequal('.'),filename):end]
+function getvector(row::DataFrameRow, key::Symbol) ::Vector{Any}
+    key in keys(row) ? row[key] : ["****"];
 end
 
-function getvector(row::DataFrameRow, key::Symbol) ::String
-    key in keys(row) ? row[key] : [:url=>"https://foo"];
+
+# function getTODO(row::DataFrameRow, key::Symbol) ::String
+#     key in keys(row) ? row[key] : [:url=>"https://foo"];
+# end
+
+
+function get_file_extension(filename)
+    return filename[findlast(isequal('.'),filename):end];
 end
+
 
 
 function check_for_unknown_keys(keyvec::Vector{Symbol})
