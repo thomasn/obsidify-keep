@@ -21,6 +21,9 @@ Pkg.add("JSON3");
 
 using ArgParse, DataFrames, Dates, Debugger, JSON3;
 
+
+include("spinner.jl");
+
 LABEL_FILE = "Labels.txt";
 MEDIA_EXTENSIONS = [".3gp", ".png", ".jpg", ".jpeg", ".mpeg", ".mp3", ".mp4", ".awb", ".gif"];
 RECOGNIZED_EXTENSIONS = [".json", ".html"]
@@ -65,16 +68,13 @@ function read_args() :: Params
         help = "enable detailed logging"
         action = :store_true
     end
-    println("---- Base.ARGS: ", Base.ARGS);
-    println("---- length(Base.ARGS): ", length(Base.ARGS));
     parsed_args = parse_args(Base.ARGS, s);
-    @bp
-    println("---- input-dir=", parsed_args["input-dir"]);
-    println("---- output-dir=", parsed_args["output-dir"])
-    println("---- parsed_args is a ", typeof(parsed_args))
     params = Params(parsed_args["input-dir"],
                     joinpath(parsed_args["output-dir"], VAULT_SUBDIR),
                     parsed_args["verbose"]);
+    params.verbose ? println("---- ARGS: ", Base.ARGS) : 0 ;
+    params.verbose ? println("---- input-dir=", parsed_args["input-dir"]) : 0 ;
+    params.verbose ? println("---- output-dir=", parsed_args["output-dir"]) : 0 ;
     return params;
 end
 
@@ -90,6 +90,7 @@ end
 function chomp_all_files(params::Params) :: Status
     # Log all warnings and store labels in Status object
     status = Status([], []);
+    spinner_pos = 1;
     # readdir() gives Vector{String} of filenames
     filenames = readdir(params.input_dir);
     # match file extension to relevant chomp method
@@ -98,6 +99,7 @@ function chomp_all_files(params::Params) :: Status
         # println("---- fn=", fn, "  ext=", ext);
         if (ext==".json")
             chomp_json_file(params, status, joinpath(params.input_dir, fn));
+            crank_the_spinner();
         elseif(ext==".html")
             ;  # no action
         elseif(fn==LABEL_FILE)
@@ -106,6 +108,7 @@ function chomp_all_files(params::Params) :: Status
             is_media = ext in MEDIA_EXTENSIONS;
             chomp_generic_file(params, status,is_media, fn);
         end
+        spinner_pos = crank_the_spinner(spinner_pos);
     end #for
     return status;
 end
@@ -149,9 +152,7 @@ function chomp_json_file(params::Params, status::Status, filename::String)
     # each attachment has (filePath, mimetype) - possible multiple attachments - in
     # addition to textContent
     # 
-    # TODO Takeout/Keep/2018-11-05T13_54_26.091Z.json has sample 'annotation' - grep imivi52
-    #     - each annotation has (description, source, title, url) - possible multiple
-    #     annotations - in addition to textContent
+    # TODO: Not even thinking about UTF-8 and graphemes...
     
 
     df = JSON3.read.(eachline(filename)) |> DataFrame;
@@ -160,16 +161,6 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         unixdate_seconds = r[:userEditedTimestampUsec] / 10^6; 
         datetime = Dates.unix2datetime(unixdate_seconds);
         ymddate = Dates.format(datetime, "yyyy-mm-dd");
-#         println("== DATE   : ", ymddate);
-#         println("== TITLE  : ", getstring(r, :title), "==");
-#         println("== TEXT   : \n", getstring(r, :textContent), "\n\n");
-#         println("== LENGTH : ", length(getstring(r, :textContent)), "==\n");
-#         println("== TITLE  : ", getstring(r, :title), "==");
-#         println("== TRASH  : ", getbool(r, :isTrashed), "==");
-#         println("== ARCHIVE: ", getbool(r, :isArchived), "==");
-#         # println("== ANNOT  : ", getvector(r, :annotations), "==");
-#         #	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
-#         println("-------- fn=", filename);
 
         md_filename=splitpath(filename)[end];    # get filename without [path
         md_filename = replace(md_filename, ".json" => ".md");
@@ -177,26 +168,12 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         # println("-------- md=", md_filename);
 
         open(md_filename, "w") do file
-            title = getstring(r, :title);
-            println(file, "---");
-            println(file, "title: ", title);
-            println(file, "date: ", ymddate);
-            if getbool(r, :isPinned)
-                println(file, "pinned: true");
-            end
-            if getbool(r, :isArchived)
-                println(file, "archived: true");
-            end
-            if getbool(r, :isTrashed)
-                println(file, "trashed: true");
-            end
-            # TODO: check for Obsidian-recognized meta-tags
-            println(file, "---");
-            println(file, "");
 
+            print_metadata(file, r, ymddate);
+            title = getstring(r, :title);
             println(file, "# ", title);
             println(file, "");
-            # TODO: Not even thinking about UTF-8 and graphemes...
+            print_attachments(file,r)
             print_text_content(file, r);
             print_list_content(file, r);
             print_annotations(file, r); 
@@ -275,6 +252,31 @@ function check_for_unknown_keys(params::Params, status::Status, keyvec::Vector{S
 end
 
 
+function print_metadata(file::IO,row::DataFrameRow, ymddate::String)
+
+    title = getstring(row, :title);
+    println(file, "---");
+    println(file, "title: ", title);
+    println(file, "date: ", ymddate);
+    if getbool(row, :isPinned)
+        println(file, "pinned: true");
+    end
+    if getbool(row, :isArchived)
+        println(file, "archived: true");
+    end
+    if getbool(row, :isTrashed)
+        println(file, "trashed: true");
+    end
+    # TODO: check for Obsidian-recognized meta-tags
+    println(file, "---");
+    println(file, "");
+end
+
+function print_attachments(file::IO, row::DataFrameRow)
+    println("---- TODO: attachments");
+end
+
+
 function print_text_content(file::IO, row::DataFrameRow)
     text_content = getstring(row, :textContent);
     if (length(text_content) > 0)
@@ -308,6 +310,10 @@ function print_annotations(file::IO, row::DataFrameRow)
     end
     for annotation in annotations
         println(file, "----: ANNOTATION [", typeof(annotation), "] ---- ", annotation); # TODO
+    # TODO Takeout/Keep/2018-11-05T13_54_26.091Z.json has sample 'annotation' - grep imivi52
+    #     - each annotation has (description, source, title, url) - possible multiple
+    #     annotations - in addition to textContent
+        #zzzzzzzz
     end
 end
 
