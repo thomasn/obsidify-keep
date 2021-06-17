@@ -53,11 +53,11 @@ end
 function read_args() :: Params
     s = ArgParseSettings()
     @add_arg_table s begin
-        "--inputdir", "-i"
+        "--input-dir", "-i"
         help = "location of the Takeout/Keep directory"
         arg_type = String
         default = "./Takeout/Keep"
-        "--outputdir", "-o"
+        "--output-dir", "-o"
         help = "location of the output directory"
         arg_type = String
         default = "."
@@ -65,12 +65,15 @@ function read_args() :: Params
         help = "enable detailed logging"
         action = :store_true
     end
-    parsed_args = parse_args(ARGS, s);
+    println("---- Base.ARGS: ", Base.ARGS);
+    println("---- length(Base.ARGS): ", length(Base.ARGS));
+    parsed_args = parse_args(Base.ARGS, s);
     @bp
-    println("---- inputdir=", parsed_args["inputdir"]); # TODO use input-dir??
+    println("---- input-dir=", parsed_args["input-dir"]);
+    println("---- output-dir=", parsed_args["output-dir"])
     println("---- parsed_args is a ", typeof(parsed_args))
-    params = Params(parsed_args["inputdir"],
-                    joinpath(parsed_args["outputdir"], VAULT_SUBDIR),
+    params = Params(parsed_args["input-dir"],
+                    joinpath(parsed_args["output-dir"], VAULT_SUBDIR),
                     parsed_args["verbose"]);
     return params;
 end
@@ -92,9 +95,9 @@ function chomp_all_files(params::Params) :: Status
     # match file extension to relevant chomp method
     for fn in filenames
         ext = get_file_extension(fn);
-        println("---- fn=", fn, "  ext=", ext);
+        # println("---- fn=", fn, "  ext=", ext);
         if (ext==".json")
-            chomp_json_file(params, status, params.input_dir * "/" * fn);
+            chomp_json_file(params, status, joinpath(params.input_dir, fn));
         elseif(ext==".html")
             ;  # no action
         elseif(fn==LABEL_FILE)
@@ -123,10 +126,12 @@ function chomp_generic_file(params::Params, status::Status, is_media::Bool, file
     if is_media
         target_dir = joinpath(target_dir,MEDIA_SUBDIR);
     end
-    println("---- generic: is_media=", is_media, " target_dir=", target_dir);
+    # println("---- generic: is_media=", is_media, " target_dir=", target_dir);
     raw_fn = splitpath(filename)[end] # discard directories
     try
-        cp(joinpath(params.input_dir, raw_fn),  joinpath(target_dir, raw_fn), force=false, follow_symlinks=true);
+        # TODO use force=false and change filename in case of collision
+        # (though OS-level collision handling - e.g. Windows "Filename (Copy).md" is viable)
+        cp(joinpath(params.input_dir, raw_fn),  joinpath(target_dir, raw_fn), force=true, follow_symlinks=true);
     catch err
         println("----hmmm: ", err.msg);
         push!(status.warnings, filename * ": " * err.msg);
@@ -155,21 +160,21 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         unixdate_seconds = r[:userEditedTimestampUsec] / 10^6; 
         datetime = Dates.unix2datetime(unixdate_seconds);
         ymddate = Dates.format(datetime, "yyyy-mm-dd");
-        println("== DATE   : ", ymddate);
-        println("== TITLE  : ", getstring(r, :title), "==");
-        println("== TEXT   : \n", getstring(r, :textContent), "\n\n");
-        println("== LENGTH : ", length(getstring(r, :textContent)), "==\n");
-        println("== TITLE  : ", getstring(r, :title), "==");
-        println("== TRASH  : ", getbool(r, :isTrashed), "==");
-        println("== ARCHIVE: ", getbool(r, :isArchived), "==");
-        # println("== ANNOT  : ", getvector(r, :annotations), "==");
-        #	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
-        println("-------- fn=", filename);
+#         println("== DATE   : ", ymddate);
+#         println("== TITLE  : ", getstring(r, :title), "==");
+#         println("== TEXT   : \n", getstring(r, :textContent), "\n\n");
+#         println("== LENGTH : ", length(getstring(r, :textContent)), "==\n");
+#         println("== TITLE  : ", getstring(r, :title), "==");
+#         println("== TRASH  : ", getbool(r, :isTrashed), "==");
+#         println("== ARCHIVE: ", getbool(r, :isArchived), "==");
+#         # println("== ANNOT  : ", getvector(r, :annotations), "==");
+#         #	println("== URL    : ", getvector(r, :annotations)[1][:url], "==");
+#         println("-------- fn=", filename);
 
         md_filename=splitpath(filename)[end];    # get filename without [path
         md_filename = replace(md_filename, ".json" => ".md");
         md_filename = joinpath(params.output_dir, md_filename);
-        println("-------- md=", md_filename);
+        # println("-------- md=", md_filename);
 
         open(md_filename, "w") do file
             title = getstring(r, :title);

@@ -1,3 +1,3 @@
 #!/bin/bash
-julia -e 'include("src/obsidify-keep.jl");obsidify_keep.main();' > x.log
-
+# For help: julia src/obsidify-keep.jl --help
+julia src/obsidify-keep.jl --input-dir ./Takeout/Keep --output-dir vault
