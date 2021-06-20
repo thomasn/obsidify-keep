@@ -98,7 +98,6 @@ function chomp_all_files(params::Params) :: Status
     for fn in filenames
         spinner_pos = crank_spinner(spinner_pos);
         ext = get_file_extension(fn);
-        # println("---- fn=", fn, "  ext=", ext);
         if (ext==".json")
             chomp_json_file(params, status, joinpath(params.input_dir, fn));
         elseif(ext==".html")
@@ -130,14 +129,12 @@ function chomp_generic_file(params::Params, status::Status, is_media::Bool, file
     if is_media
         target_dir = joinpath(target_dir,MEDIA_SUBDIR);
     end
-    # println("---- generic: is_media=", is_media, " target_dir=", target_dir);
     raw_fn = splitpath(filename)[end] # discard directories
     try
         # TODO use force=false and change filename in case of collision
         # (though OS-level collision handling - e.g. Windows "Filename (Copy).md" is viable)
         cp(joinpath(params.input_dir, raw_fn),  joinpath(target_dir, raw_fn), force=true, follow_symlinks=true);
     catch err
-        println("----hmmm: ", err.msg);
         push!(status.warnings, filename * ": " * err.msg);
     end
 
@@ -163,7 +160,6 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         md_filename=splitpath(filename)[end];    # get filename without [path
         md_filename = replace(md_filename, ".json" => ".md");
         md_filename = joinpath(params.output_dir, md_filename);
-        println("-------- md=", md_filename);
 
         try
             open(md_filename, "w") do file
@@ -171,9 +167,7 @@ function chomp_json_file(params::Params, status::Status, filename::String)
                 title = getstring(r, :title);
                 println(file, "# ", title);
                 println(file, "");
-                println("-------- entering print_attachments");
                print_attachments(file, r)
-                println("-------- exiting print_attachments");
                 print_text_content(file, r);
                 print_list_content(file, r);
                 print_annotations(file, r); 
@@ -252,7 +246,6 @@ function check_for_unknown_keys(params::Params, status::Status, keyvec::Vector{S
     for key in keyvec;
         if !(key in known_keys)
             warning = "unknown key: " * String(key);
-            println("--------", warning);
             push!(status.warnings, warning);
         end
     end
@@ -280,8 +273,6 @@ function print_metadata(file::IO,row::DataFrameRow, ymddate::String)
 end
 
 function print_attachments(file::IO, row::DataFrameRow)
-    println("-- got into p_a.... --------");
-    println("-- title ------ [", getstring(row, :title), "] --------");
     attachments = getvector(row, :attachments);    
     if attachments == [nothing] || attachments == []
         return
@@ -298,27 +289,17 @@ function print_attachments(file::IO, row::DataFrameRow)
                        "3gp"    => "3gp",
                        "jpeg"   => "jpg");
 
-    println("---- attachments 001");
     for attachment in attachments
-    println("---- attachments 002");
         file_path = get(attachment, "filePath", "");
-    println("---- attachments 003");
         mimetype = attachment[:mimetype];
-    println("---- attachments 004");
         # Get the final segment of the mimetype, which needs to be remapped:
         buggy_extension = rsplit(mimetype, '/', limit=2)[end];
-        println("---- attachments 005");
         @bp
         patched_extension = get(extension_map, buggy_extension, "");
-        println("---- attachments 006");
         if (patched_extension != "")
-        println("---- attachments 007");
-            replace(file_path, "." * buggy_extension => "." * patched_extension);
-        println("---- attachments 008");
+            file_path = replace(file_path, "." * buggy_extension => "." * patched_extension);
             alt_text = file_path;
             uri = joinpath(MEDIA_SUBDIR, file_path);
-            println("-------- mimetype=$mimetype file_path=$file_path");
-            println("-------- alt_text=$alt_text uri=$uri");
             println(file, "![$alt_text]($uri)");
         end
     end
@@ -366,7 +347,6 @@ function print_list_content(file::IO, row::DataFrameRow)
         return
     end
     for list_item in list_content
-        # println(file, "----: LIST_ITEM [", typeof(list_item), "] ---- ", list_item); # TODO
         text = list_item[:text];
         flag = (list_item[:isChecked]) ? "[x]" : "[ ]";
         println(file, "- ", flag, " ", text);
