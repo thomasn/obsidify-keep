@@ -15,7 +15,7 @@ A Google Keep repository can be exported using [Google Takeout][]
 
 ## Status
 
-See [GitHub Issues](./issues) for known problems.
+See [GitHub Issues](../../issues) for known problems.
 
 ## Usage
 
