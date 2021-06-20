@@ -1,5 +1,4 @@
-module obsidify_keep
-
+# Text-mode spinners - from https://codepen.io/eLoyyyyy/full/yPdPPW
 
 DOTS12 = [
 			"⢀⠀",
@@ -66,9 +65,9 @@ CORNERS = ['◴', '◷', '◶', '◵'];
 
 
 
-function crank_the_spinner(spinner_pos::UInt16) :: UInt16
-    # spinners, backspace = CORNERS, "\b";
-    spinners, backspace = DOTS12, "\b\b";
+function crank_spinner(spinner_pos::UInt16) :: UInt16
+    spinners, backspace = CORNERS, "\b";
+    # spinners, backspace = DOTS12, "\b\b";
     print(backspace);
     print(spinners[spinner_pos]);
     spinner_pos = (spinner_pos) % (length(spinners)) +1;
@@ -85,4 +84,3 @@ function test_spinner()
 end
      # test_spinner()
 
-end #module

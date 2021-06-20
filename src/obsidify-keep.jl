@@ -11,18 +11,16 @@
 # * html: ignored unless JSON processing fails, in which case the corresponding html is copied
 # * other files: copied to vault and added to report file
 
-module obsidify_keep
+module ObsidifyKeep
 
-import Pkg;
-import Dates;
-
+using ArgParse, DataFrames, Dates, Debugger, JSON3, Pkg;
 Pkg.add("DataFrames");
 Pkg.add("JSON3");
 
-using ArgParse, DataFrames, Dates, Debugger, JSON3;
 
 
 include("spinner.jl");
+
 
 LABEL_FILE = "Labels.txt";
 MEDIA_EXTENSIONS = [".3gp", ".png", ".jpg", ".jpeg", ".mpeg", ".mp3", ".mp4", ".awb", ".gif"];
@@ -90,16 +88,16 @@ end
 function chomp_all_files(params::Params) :: Status
     # Log all warnings and store labels in Status object
     status = Status([], []);
-    spinner_pos = 1;
+    spinner_pos = UInt16(1);
     # readdir() gives Vector{String} of filenames
     filenames = readdir(params.input_dir);
     # match file extension to relevant chomp method
     for fn in filenames
+        spinner_pos = crank_spinner(spinner_pos);
         ext = get_file_extension(fn);
         # println("---- fn=", fn, "  ext=", ext);
         if (ext==".json")
             chomp_json_file(params, status, joinpath(params.input_dir, fn));
-            crank_the_spinner();
         elseif(ext==".html")
             ;  # no action
         elseif(fn==LABEL_FILE)
@@ -108,7 +106,7 @@ function chomp_all_files(params::Params) :: Status
             is_media = ext in MEDIA_EXTENSIONS;
             chomp_generic_file(params, status,is_media, fn);
         end
-        spinner_pos = crank_the_spinner(spinner_pos);
+        spinner_pos = crank_spinner(spinner_pos);
     end #for
     return status;
 end
@@ -273,7 +271,7 @@ function print_metadata(file::IO,row::DataFrameRow, ymddate::String)
 end
 
 function print_attachments(file::IO, row::DataFrameRow)
-    println("---- TODO: attachments");
+    # println("---- TODO: attachments");
 end
 
 
@@ -317,9 +315,11 @@ function print_annotations(file::IO, row::DataFrameRow)
     end
 end
 
+
+
 end # module
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    obsidify_keep.main()
+    ObsidifyKeep.main()
 end
 
