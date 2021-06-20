@@ -3,12 +3,12 @@
 # @desc   Convert Google Keep notes to Obsidian Markdown
 
 # A Google Keep repository can be exported using [Google Takeout](https://takeout.google.com/settings/takeout) 
-# - this generates a Takeout/Keep directory containing:
+# - this generates a zip file of a Takeout/Keep directory containing:
 #
 # * json: the primary textual content, processed and output to vault
 # * Labels.txt: list of label (tag) names used - added to report 
 # * audio/video files: copied to vault/media
-# * html: ignored unless JSON processing fails, in which case the corresponding html is copied
+# * html: currently ignored
 # * other files: copied to vault and added to report file
 
 module ObsidifyKeep
@@ -147,11 +147,8 @@ end
 function chomp_json_file(params::Params, status::Status, filename::String)
     # TODO handle isArchive and isTrash
     # TODO strip trailing spaces from filenames / titles
+    # TODO at two trailing spaces to output lines to force newlines
     #
-    # TODO Takeout/Keep/2018-04-13T00_29_24.173+01_00.json has sample 'attachment' - an 
-    # amr-wb audio, auto-transcribed... grep 'what to do with the bicycle'
-    # each attachment has (filePath, mimetype) - possible multiple attachments - in
-    # addition to textContent
     # 
     # TODO: Not even thinking about UTF-8 and graphemes...
     
@@ -166,7 +163,7 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         md_filename=splitpath(filename)[end];    # get filename without [path
         md_filename = replace(md_filename, ".json" => ".md");
         md_filename = joinpath(params.output_dir, md_filename);
-        # println("-------- md=", md_filename);
+        println("-------- md=", md_filename);
 
         try
             open(md_filename, "w") do file
@@ -174,19 +171,23 @@ function chomp_json_file(params::Params, status::Status, filename::String)
                 title = getstring(r, :title);
                 println(file, "# ", title);
                 println(file, "");
-                print_attachments(file,r)
+                println("-------- entering print_attachments");
+               print_attachments(file, r)
+                println("-------- exiting print_attachments");
                 print_text_content(file, r);
                 print_list_content(file, r);
                 print_annotations(file, r); 
-            end # open
+            end
         catch err
             msg = "";
             if (typeof(err) == ErrorException)
                 msg = filename * ": " * err.msg;
             elseif (typeof(err) == SystemError)
                 msg = filename * ": " * err.prefix;
-                push!(status.warnings, filename * ": " * msg);
+            else
+                msg = "Unknown $(typeof(err))"
             end
+            push!(status.warnings, filename * ": " * msg);
             params.verbose ? println("ERROR: ", msg) : 0 ;
         end
     end
@@ -222,10 +223,6 @@ function getvector(row::DataFrameRow, key::Symbol) ::Vector{Any}
     key in keys(row) ? row[key] :  [nothing];
 end
 
-
-# function getTODO(row::DataFrameRow, key::Symbol) ::String
-#     key in keys(row) ? row[key] : [:url=>"https://foo"];
-# end
 
 
 function get_file_extension(filename)
@@ -283,7 +280,71 @@ function print_metadata(file::IO,row::DataFrameRow, ymddate::String)
 end
 
 function print_attachments(file::IO, row::DataFrameRow)
-    # println("---- TODO: attachments");
+    println("-- got into p_a.... --------");
+    println("-- title ------ [", getstring(row, :title), "] --------");
+    attachments = getvector(row, :attachments);    
+    if attachments == [nothing] || attachments == []
+        return
+    end
+    
+    # Each attachment has (filePath, mimetype) - possible multiple attachments - in
+    # addition to textContent
+    # NOTE: VLC can play the audio/amr-wb ".amr" and audio/3gp ".3gp" formats.
+    # FUTURE: support output of <audio.../> and <video.../> tags for inline players
+    # BUG: Takeout mangles filenames - the file extension shown in JSON input is the last segment of the mime-type but the media files have 3-char extensions - hence we need to remap:
+    # TODO: confirm no other extensions are mis-mapped.
+
+    extension_map = Dict("amr-wb" => "awb",
+                       "3gp"    => "3gp",
+                       "jpeg"   => "jpg");
+
+    println("---- attachments 001");
+    for attachment in attachments
+    println("---- attachments 002");
+        file_path = get(attachment, "filePath", "");
+    println("---- attachments 003");
+        mimetype = attachment[:mimetype];
+    println("---- attachments 004");
+        # Get the final segment of the mimetype, which needs to be remapped:
+        buggy_extension = rsplit(mimetype, '/', limit=2)[end];
+        println("---- attachments 005");
+        @bp
+        patched_extension = get(extension_map, buggy_extension, "");
+        println("---- attachments 006");
+        if (patched_extension != "")
+        println("---- attachments 007");
+            replace(file_path, "." * buggy_extension => "." * patched_extension);
+        println("---- attachments 008");
+            alt_text = file_path;
+            uri = joinpath(MEDIA_SUBDIR, file_path);
+            println("-------- mimetype=$mimetype file_path=$file_path");
+            println("-------- alt_text=$alt_text uri=$uri");
+            println(file, "![$alt_text]($uri)");
+        end
+    end
+end
+
+
+function print_annotations(file::IO, row::DataFrameRow)
+    annotations = getvector(row, :annotations);    
+    if annotations == [nothing] || annotations == []
+        return
+    end
+
+    # Output a horizontal break
+    println(file);
+    println(file, "--------");
+    println(file);
+
+    for annotation in annotations
+        source = annotation[:source];
+        if (source == "WEBLINK")
+            title = annotation[:title];
+            description = annotation[:description];
+            url = annotation[:url];
+            println(file, "- [$title]($url \"$description\")");
+        end
+    end
 end
 
 
@@ -312,20 +373,6 @@ function print_list_content(file::IO, row::DataFrameRow)
     end
 end
 
-
-function print_annotations(file::IO, row::DataFrameRow)
-    annotations = getvector(row, :annotations);    
-    if annotations == [nothing]
-        return
-    end
-    for annotation in annotations
-        println(file, "----: ANNOTATION [", typeof(annotation), "] ---- ", annotation); # TODO
-    # TODO Takeout/Keep/2018-11-05T13_54_26.091Z.json has sample 'annotation' - grep imivi52
-    #     - each annotation has (description, source, title, url) - possible multiple
-    #     annotations - in addition to textContent
-        #zzzzzzzz
-    end
-end
 
 
 
