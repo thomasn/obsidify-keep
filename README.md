@@ -4,7 +4,8 @@
 **Convert Google Keep notes to Obsidian Markdown**
 
 A Google Keep repository can be exported using [Google Takeout][]
- This generates a zip file. When extracted, it holds a `Takeout/Keep` directory containing:
+
+ This generates a zip file, which, when extracted, holds a `Takeout/Keep` directory containing:
 
  * `*.json`: the primary textual content, processed and output to vault
  * `Labels.txt`: list of label (tag) names used - added to report 
