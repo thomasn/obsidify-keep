@@ -64,22 +64,24 @@ function read_args() :: Params
         default = "."
         "--verbose", "-v"
         help = "enable detailed logging"
-        action = :store_true
+        arg_type = Bool
+        default = false
     end
     parsed_args = parse_args(Base.ARGS, s);
     params = Params(parsed_args["input-dir"],
                     joinpath(parsed_args["output-dir"], VAULT_SUBDIR),
                     parsed_args["verbose"]);
-    params.verbose ? println("---- ARGS: ", Base.ARGS) : 0 ;
-    params.verbose ? println("---- input-dir=", parsed_args["input-dir"]) : 0 ;
-    params.verbose ? println("---- output-dir=", parsed_args["output-dir"]) : 0 ;
+    params.verbose ? println("---- ARGS: ",      Base.ARGS)          : 0 ;
+    params.verbose ? println("---- input-dir=",  params.input_dir)   : 0 ;
+    params.verbose ? println("---- output-dir=", params.output_dir)  : 0 ;
+    params.verbose ? println("---- verbose=",    params.verbose)     : 0 ;
     return params;
 end
 
 
 function make_output_dirs(params::Params)
     vault = params.output_dir;
-    # mkpath() creates intermediate directories, does not error if they exist
+    # unlike mkdir(), mkpath() creates intermediate directories, does not error if they exist
     mkpath(vault, mode=0o777);
     mkpath(joinpath(vault, MEDIA_SUBDIR), mode=0o777);
 end
@@ -88,6 +90,7 @@ end
 function chomp_all_files(params::Params) :: Status
     # Log all warnings and store labels in Status object
     status = Status([], []);
+    println();
     spinner_pos = UInt16(1);
     # readdir() gives Vector{String} of filenames
     filenames = readdir(params.input_dir);
@@ -165,18 +168,27 @@ function chomp_json_file(params::Params, status::Status, filename::String)
         md_filename = joinpath(params.output_dir, md_filename);
         # println("-------- md=", md_filename);
 
-        open(md_filename, "w") do file
-
-            print_metadata(file, r, ymddate);
-            title = getstring(r, :title);
-            println(file, "# ", title);
-            println(file, "");
-            print_attachments(file,r)
-            print_text_content(file, r);
-            print_list_content(file, r);
-            print_annotations(file, r); 
-
-        end # open
+        try
+            open(md_filename, "w") do file
+                print_metadata(file, r, ymddate);
+                title = getstring(r, :title);
+                println(file, "# ", title);
+                println(file, "");
+                print_attachments(file,r)
+                print_text_content(file, r);
+                print_list_content(file, r);
+                print_annotations(file, r); 
+            end # open
+        catch err
+            msg = "";
+            if (typeof(err) == ErrorException)
+                msg = filename * ": " * err.msg;
+            elseif (typeof(err) == SystemError)
+                msg = filename * ": " * err.prefix;
+                push!(status.warnings, filename * ": " * msg);
+            end
+            params.verbose ? println("ERROR: ", msg) : 0 ;
+        end
     end
 end
 
