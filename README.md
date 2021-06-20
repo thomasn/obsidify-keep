@@ -1,7 +1,7 @@
 
 # obsidify-keep
 
-**Convert Google Keep notes to Obsidian Markdown**
+**Convert Google Keep notes to [Obsidian Markdown][]**
 
 A Google Keep repository can be exported using [Google Takeout][]
 
@@ -40,7 +40,7 @@ scoop install git julia
 - julia src\obsidify-keep.jl --input-dir=somewhere\Takeout\Keep --output-dir=. --verbose=true
 
 
-
+[Obsidian Markdown]: https://obsidian.md/
 [Google Takeout]: https://takeout.google.com/settings/takeout
 [Powershell 7]: https://github.com/PowerShell/powershell/releases
 
