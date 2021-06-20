@@ -29,16 +29,17 @@ This "KeepVault" folder can now be added as a new vault in Obsidian. Text, image
 In [Powershell 7][]:
 
 - Install [scoop](https://scoop.sh/)
-- cd
+```
+cd
 scoop install git julia
-- mkdir code
-- cd code
-- git clone git@github.com:thomasn/obsidify-keep
-- Grind yourself a fresh [Google Takeout][] zipfile
-- Extract the zip file to somewhere\Takeout\Keep
-- cd $HOME\code\obsidify-keep
-- julia src\obsidify-keep.jl --input-dir=somewhere\Takeout\Keep --output-dir=. --verbose=true
-
+mkdir code
+cd code
+git clone git@github.com:thomasn/obsidify-keep
+# Grind yourself a fresh [Google Takeout][] zipfile
+# Extract the zip file to somewhere\Takeout\Keep
+cd $HOME\code\obsidify-keep
+julia src\obsidify-keep.jl --input-dir=somewhere\Takeout\Keep --output-dir=. --verbose=true
+```
 
 [Obsidian Markdown]: https://obsidian.md/
 [Google Takeout]: https://takeout.google.com/settings/takeout
