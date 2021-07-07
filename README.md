@@ -1,10 +1,11 @@
 
 # obsidify-keep
 
-**Convert Google Keep notes to Obsidian Markdown**
+**Convert Google Keep notes to [Obsidian Markdown][]**
 
 A Google Keep repository can be exported using [Google Takeout][]
- This generates a zip file. When extracted, it holds a `Takeout/Keep` directory containing:
+
+ This generates a zip file, which, when extracted, holds a `Takeout/Keep` directory containing:
 
  * `*.json`: the primary textual content, processed and output to vault
  * `Labels.txt`: list of label (tag) names used - added to report 
@@ -14,7 +15,7 @@ A Google Keep repository can be exported using [Google Takeout][]
 
 ## Status
 
-See [GitHub Issues](./issues) for known problems.
+See [GitHub Issues](../../issues) for known problems.
 
 ## Usage
 
@@ -28,18 +29,19 @@ This "KeepVault" folder can now be added as a new vault in Obsidian. Text, image
 In [Powershell 7][]:
 
 - Install [scoop](https://scoop.sh/)
-- cd
+```
+cd
 scoop install git julia
-- mkdir code
-- cd code
-- git clone git@github.com:thomasn/obsidify-keep
-- Grind yourself a fresh [Google Takeout][] zipfile
-- Extract the zip file to somewhere\Takeout\Keep
-- cd $HOME\code\obsidify-keep
-- julia src\obsidify-keep.jl --input-dir=somewhere\Takeout\Keep --output-dir=. --verbose=true
+mkdir code
+cd code
+git clone git@github.com:thomasn/obsidify-keep
+# Grind yourself a fresh [Google Takeout][] zipfile
+# Extract the zip file to somewhere\Takeout\Keep
+cd $HOME\code\obsidify-keep
+julia src\obsidify-keep.jl --input-dir=somewhere\Takeout\Keep --output-dir=. --verbose=true
+```
 
-
-
+[Obsidian Markdown]: https://obsidian.md/
 [Google Takeout]: https://takeout.google.com/settings/takeout
 [Powershell 7]: https://github.com/PowerShell/powershell/releases
 
