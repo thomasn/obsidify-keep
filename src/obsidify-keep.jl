@@ -52,7 +52,7 @@ struct Status
 end
 
 function read_args() :: Params
-    s = ArgParseSettings()
+    s = ArgParseSettings();
     @add_arg_table s begin
         "--input-dir", "-i"
         help = "location of the Takeout/Keep directory"
@@ -285,9 +285,11 @@ function print_attachments(file::IO, row::DataFrameRow)
     # BUG: Takeout mangles filenames - the file extension shown in JSON input is the last segment of the mime-type but the media files have 3-char extensions - hence we need to remap:
     # TODO: confirm no other extensions are mis-mapped.
 
-    extension_map = Dict("amr-wb" => "awb",
-                       "3gp"    => "3gp",
-                       "jpeg"   => "jpg");
+    extension_map = Dict(
+                         "amr-wb" => "awb",
+                         "3gp"    => "3gp",
+                         "jpeg"   => "jpg"
+                        );
 
     for attachment in attachments
         file_path = get(attachment, "filePath", "");
@@ -300,6 +302,8 @@ function print_attachments(file::IO, row::DataFrameRow)
             file_path = replace(file_path, "." * buggy_extension => "." * patched_extension);
             alt_text = file_path;
             uri = joinpath(MEDIA_SUBDIR, file_path);
+            # TODO: test with "![[assetfile]] instead - maybe with filename as alt text?
+            # See ![[file|file]] syntax - will this set alt text?
             println(file, "![$alt_text]($uri)");
         end
     end
