@@ -13,9 +13,7 @@
 
 module ObsidifyKeep
 
-using ArgParse, DataFrames, Dates, Debugger, JSON3, Pkg;
-Pkg.add("DataFrames");
-Pkg.add("JSON3");
+using ArgParse, DataFrames, Dates, Debugger, JSON3;
 
 
 
@@ -220,7 +218,7 @@ end
 
 
 function get_file_extension(filename)
-    return filename[findlast(isequal('.'),filename):end];
+    return splitext(filename)[2];
 end
 
 
